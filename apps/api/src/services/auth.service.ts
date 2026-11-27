@@ -101,3 +101,8 @@ export async function addOrganizationMember(organizationId:string,actorRole:stri
  if(!user)fail(404,"USER_NOT_FOUND","Create the user account before adding them to this organization.");
  return Membership.create({userId:user._id,organizationId,role,status:"active"});
 }
+
+export async function revokeRefreshToken(refreshToken:string|undefined){
+ if(!refreshToken)return;
+ await Session.updateOne({refreshTokenHash:digest(refreshToken),revokedAt:null},{$set:{revokedAt:new Date()}});
+}
