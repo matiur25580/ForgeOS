@@ -8,7 +8,7 @@ export const authRouter=Router();
 const cookieName="forgeos_refresh";
 const authLimiter=rateLimit({windowMs:15*60*1000,limit:10,standardHeaders:"draft-7",legacyHeaders:false,message:{success:false,error:{code:"AUTH_RATE_LIMITED",message:"Too many authentication attempts. Try again later."}}});
 const cookieOptions={httpOnly:true,secure:env.NODE_ENV==="production",sameSite:"lax" as const,path:`${env.API_PREFIX}/auth`,maxAge:env.REFRESH_TOKEN_TTL_DAYS*86400000};
-function meta(req:Request){return {ipAddress:req.ip,userAgent:req.get("user-agent")??""};}
+function meta(req:Request){return {ipAddress:req.ip??"",userAgent:req.get("user-agent")??""};}
 function setRefreshCookie(res:import("express").Response,token:string){res.cookie(cookieName,token,cookieOptions);}
 function clearRefreshCookie(res:import("express").Response){res.clearCookie(cookieName,{httpOnly:true,secure:env.NODE_ENV==="production",sameSite:"lax",path:`${env.API_PREFIX}/auth`});}
 function sendAuthError(error:unknown,next:(error:unknown)=>void){next(error instanceof AuthError?error:error);}
