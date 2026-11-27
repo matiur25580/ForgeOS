@@ -9,7 +9,7 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1),
   JWT_ACCESS_SECRET: z.string().min(32),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info")
-}).strict();
+});
 
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
