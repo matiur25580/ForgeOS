@@ -5,7 +5,7 @@ import {Session} from "../models/session.model.js";
 import {User} from "../models/user.model.js";
 import {verifyAccessToken,type AccessClaims} from "../security/tokens.js";
 export interface AuthContext{userId:string;organizationId:string;role:string;sessionId:string}
-declare global{namespace Express{interface Request{auth?:AuthContext}}}
+declare module "express-serve-static-core" { interface Request { auth?: AuthContext } }
 export async function authenticate(req:Request,res:Response,next:NextFunction):Promise<void>{
  const header=req.header("authorization");const token=header?.startsWith("Bearer ")?header.slice(7):"";
  if(!token){res.status(401).json({success:false,error:{code:"AUTHENTICATION_REQUIRED",message:"A valid access token is required."}});return;}
