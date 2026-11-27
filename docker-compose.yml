@@ -1,16 +1,20 @@
 services:
   mongodb:
     image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - forgeos-mongo:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb:27017'}]}).ok }"
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   api:
     build:
@@ -20,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/forgeos
+      MONGODB_URI: mongodb://mongodb:27017/forgeos?replicaSet=rs0
       API_PORT: 4000
     ports:
       - "4000:4000"

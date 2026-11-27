@@ -1,32 +1,57 @@
-import { Activity, Factory, Gauge, Layers3, ShieldCheck, Wrench } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Activity, ArrowRight, Factory, Gauge, Layers3, LockKeyhole, LogOut, Mail, ShieldCheck, Users, Wrench } from "lucide-react";
 
-const metrics = [
-  { label: "Production orders", value: "—", note: "Connect production data to activate", icon: Layers3 },
-  { label: "Machine availability", value: "—", note: "Requires registered machine telemetry", icon: Gauge },
-  { label: "Open maintenance", value: "—", note: "Maintenance module not yet enabled", icon: Wrench },
-  { label: "Quality yield", value: "—", note: "Requires verified inspection records", icon: ShieldCheck }
-];
+const API_URL=(import.meta.env.VITE_API_URL??"http://localhost:4000/api/v1").replace(/\/$/,"");
+type Profile={user:{id:string;email:string;firstName:string;lastName:string};organization:{id:string;name:string;slug:string};role:string};
+type AuthPayload=Profile&{accessToken:string;tokenType:string;expiresIn:number};
+type Membership={organization:{_id:string;name:string;slug:string};role:string};
+type ApiBody<T>={success:boolean;data?:T;error?:{code?:string;message?:string}};
+async function api<T>(path:string,options:RequestInit={},token=""):Promise<T>{
+ const response=await fetch(API_URL+path,{...options,credentials:"include",headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{}),...options.headers}});
+ const body=await response.json().catch(()=>({})) as ApiBody<T>;
+ if(!response.ok||body.data===undefined)throw new Error(body.error?.message??"The request could not be completed.");
+ return body.data;
+}
+const roles=["admin","plant_manager","production_supervisor","maintenance_manager","maintenance_technician","quality_manager","quality_inspector","operator","auditor","viewer","owner"];
+const roleName=(role:string)=>role.replaceAll("_"," ");
 
-export default function App() {
-  return (
-    <main className="shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">F</span><div><strong>ForgeOS</strong><small>INDUSTRIAL OPERATIONS</small></div></div>
-        <div className="nav-label">WORKSPACE</div>
-        <a className="nav active"><Activity size={17}/> Overview</a>
-        <a className="nav"><Factory size={17}/> Plants & assets</a>
-        <a className="nav"><Layers3 size={17}/> Production</a>
-        <a className="nav"><Wrench size={17}/> Maintenance</a>
-        <a className="nav"><ShieldCheck size={17}/> Quality</a>
-        <div className="sidebar-foot"><span className="status-dot"/> Platform foundation<br/><small>Live application shell</small></div>
-      </aside>
-      <section className="main">
-        <header><div><span className="eyebrow">OPERATIONS / OVERVIEW</span><h1>Plant operations</h1><p>One operational workspace for production, assets, maintenance and quality.</p></div><div className="environment">FOUNDATION BUILD</div></header>
-        <div className="notice"><Activity size={18}/><span><strong>Workspace initialized.</strong> Connect authenticated plant data and operational modules to populate live metrics. No sample values are presented as real production data.</span></div>
-        <div className="metrics">{metrics.map(({label,value,note,icon:Icon})=><article className="metric" key={label}><div className="metric-top"><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{note}</small></article>)}</div>
-        <section className="panel"><div className="panel-head"><div><span className="eyebrow">PLATFORM MODULES</span><h2>Operational command center</h2></div><span className="pill">Milestone 1</span></div><div className="module-grid"><div><Factory/><strong>Plant registry</strong><small>Facilities, production lines and machine hierarchy</small></div><div><Layers3/><strong>Production execution</strong><small>Orders, routing steps, shift plans and output</small></div><div><Wrench/><strong>Maintenance</strong><small>Work orders, assignments and downtime events</small></div><div><ShieldCheck/><strong>Quality management</strong><small>Inspections, non-conformance and corrective action</small></div></div></section>
-        <footer>ForgeOS · Industrial Operations & Manufacturing Intelligence · Metrics activate when verified data is available.</footer>
-      </section>
-    </main>
-  );
+function AuthScreen({onAuth}:{onAuth:(payload:AuthPayload)=>void}){
+ const [mode,setMode]=useState<"login"|"register">("login");
+ const [busy,setBusy]=useState(false),[error,setError]=useState("");
+ const [form,setForm]=useState({email:"",password:"",firstName:"",lastName:"",organizationName:"",organizationSlug:""});
+ const update=(key:keyof typeof form,value:string)=>setForm(current=>({...current,[key]:value}));
+ async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError("");try{
+  const body=mode==="login"?{email:form.email,password:form.password,...(form.organizationSlug?{organizationSlug:form.organizationSlug}:{})}:{email:form.email,password:form.password,firstName:form.firstName,lastName:form.lastName,organizationName:form.organizationName,...(form.organizationSlug?{organizationSlug:form.organizationSlug}:{})};
+  const result=await api<AuthPayload>("/auth/"+(mode==="login"?"login":"register"),{method:"POST",body:JSON.stringify(body)});
+  onAuth(result);
+ }catch(e){setError(e instanceof Error?e.message:"Unable to authenticate.");}finally{setBusy(false);}}
+ return <main className="auth-layout"><section className="auth-visual"><div className="forge-brand"><span className="forge-symbol"><Factory size={22}/></span><span>ForgeOS</span></div><div className="auth-visual-copy"><span className="eyebrow">INDUSTRIAL OPERATIONS PLATFORM</span><h1>Run your plant with clarity, control and confidence.</h1><p>A secure operational workspace for teams responsible for production, assets, maintenance and quality.</p><div className="auth-proof"><span><ShieldCheck size={16}/> Tenant-scoped access</span><span><LockKeyhole size={16}/> Rotating secure sessions</span></div></div><small className="visual-foot">FORGEOS · MANUFACTURING OPERATIONS INTELLIGENCE</small></section><section className="auth-content"><div className="auth-card"><div className="mobile-brand"><Factory size={20}/> ForgeOS</div><span className="eyebrow">YOUR PLANT WORKSPACE</span><h2>{mode==="login"?"Welcome back":"Create your organization"}</h2><p>{mode==="login"?"Sign in to access your manufacturing operations workspace.":"Set up your organization and owner account to get started."}</p><div className="auth-switch"><button className={mode==="login"?"selected":""} onClick={()=>{setMode("login");setError("");}}>Sign in</button><button className={mode==="register"?"selected":""} onClick={()=>{setMode("register");setError("");}}>Create account</button></div><form className="auth-form" onSubmit={submit}>
+ {mode==="register"&&<div className="form-pair"><label>First name<input required maxLength={80} value={form.firstName} onChange={e=>update("firstName",e.target.value)} placeholder="Alex"/></label><label>Last name<input required maxLength={80} value={form.lastName} onChange={e=>update("lastName",e.target.value)} placeholder="Morgan"/></label></div>}
+ {mode==="register"&&<label>Organization name<input required minLength={2} maxLength={120} value={form.organizationName} onChange={e=>update("organizationName",e.target.value)} placeholder="Northstar Manufacturing"/></label>}
+ {mode==="login"&&<label>Organization slug <span className="muted">(if your account has multiple workspaces)</span><input value={form.organizationSlug} onChange={e=>update("organizationSlug",e.target.value)} placeholder="northstar-manufacturing"/></label>}
+ <label>Email address<span className="input-icon"><Mail size={15}/></span><input type="email" required maxLength={254} autoComplete="email" value={form.email} onChange={e=>update("email",e.target.value)} placeholder="you@company.com"/></label>
+ <label>Password<input type="password" required minLength={mode==="register"?12:1} maxLength={128} autoComplete={mode==="login"?"current-password":"new-password"} value={form.password} onChange={e=>update("password",e.target.value)} placeholder={mode==="register"?"At least 12 characters":"Your password"}/>{mode==="register"&&<small className="muted">Use at least 12 characters.</small>}</label>
+ {error&&<div className="form-error" role="alert">{error}</div>}
+ <button className="primary" disabled={busy}>{busy?"Please wait…":mode==="login"?"Sign in securely":"Create workspace"}<ArrowRight size={16}/></button>
+ </form><div className="auth-note"><LockKeyhole size={14}/> Refresh sessions are stored in HttpOnly cookies and rotated on use.</div></div></section></main>;
+}
+
+function Dashboard({profile,token,onLogout}:{profile:Profile;token:string;onLogout:()=>void}){
+ const [memberships,setMemberships]=useState<Membership[]>([]),[email,setEmail]=useState(""),[role,setRole]=useState("operator");
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const canManage=["owner","admin"].includes(profile.role);
+ async function load(){try{const data=await api<{memberships:Membership[]}>("/organizations",{},token);setMemberships(data.memberships);}catch(e){setError(e instanceof Error?e.message:"Unable to load memberships.");}}
+ useEffect(()=>{void load();},[token]);
+ async function addMember(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError("");setNotice("");try{await api("/organizations/"+profile.organization.id+"/members",{method:"POST",body:JSON.stringify({email,role})},token);setEmail("");setNotice("Organization membership created.");await load();}catch(e){setError(e instanceof Error?e.message:"Unable to add member.");}finally{setBusy(false);}}
+ return <main className="app-shell"><aside className="sidebar"><div className="forge-brand"><span className="forge-symbol"><Factory size={20}/></span><span>ForgeOS</span></div><div className="nav-caption">WORKSPACE</div><div className="org-card"><span className="org-avatar">{profile.organization.name.slice(0,1).toUpperCase()}</span><div><strong>{profile.organization.name}</strong><small>Active organization</small></div></div><nav><a className="nav-link active"><Activity size={17}/> Overview</a><a className="nav-link"><Factory size={17}/> Plants & assets</a><a className="nav-link"><Layers3 size={17}/> Production</a><a className="nav-link"><Wrench size={17}/> Maintenance</a><a className="nav-link"><ShieldCheck size={17}/> Quality</a></nav><div className="sidebar-user"><span className="user-avatar">{profile.user.firstName.slice(0,1)}{profile.user.lastName.slice(0,1)}</span><div><strong>{profile.user.firstName} {profile.user.lastName}</strong><small>{roleName(profile.role)}</small></div><button onClick={onLogout} title="Sign out" aria-label="Sign out"><LogOut size={16}/></button></div></aside><section className="main-content"><header className="topbar"><div><span className="eyebrow">OPERATIONS / OVERVIEW</span><h1>Good day, {profile.user.firstName}</h1><p>Your authenticated manufacturing workspace is ready.</p></div><span className="secure-pill"><ShieldCheck size={14}/> SECURE SESSION</span></header><div className="notice"><ShieldCheck size={18}/><span><strong>Identity and tenant boundary active.</strong> Your current workspace is {profile.organization.name}. Plant and production metrics remain unavailable until verified operational modules are delivered.</span></div><div className="metrics-grid">{[{label:"Production orders",icon:Layers3,note:"Production execution milestone"},{label:"Machine availability",icon:Gauge,note:"Asset registry and telemetry"},{label:"Open maintenance",icon:Wrench,note:"Maintenance operations"},{label:"Quality yield",icon:ShieldCheck,note:"Inspection and quality records"}].map(item=><article className="metric-card" key={item.label}><div><span>{item.label}</span><item.icon size={18}/></div><strong>—</strong><small>{item.note}</small></article>)}</div><section className="panel"><div className="panel-heading"><div><span className="eyebrow">ORGANIZATION ACCESS</span><h2>Your workspaces</h2></div><span className="status-pill">Tenant scoped</span></div><div className="membership-list">{memberships.map(m=><div className="membership-row" key={m.organization._id}><span className="org-avatar">{m.organization.name.slice(0,1).toUpperCase()}</span><div><strong>{m.organization.name}</strong><small>{m.organization.slug}</small></div><span className="role-pill">{roleName(m.role)}</span></div>)}</div></section>{canManage&&<section className="panel member-panel"><div className="panel-heading"><div><span className="eyebrow">ACCESS CONTROL</span><h2>Add a team member</h2></div><Users size={19}/></div><p className="panel-copy">Add an existing ForgeOS account to this organization with a least-privilege operational role.</p><form className="member-form" onSubmit={addMember}><label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="teammate@company.com"/></label><label>Organization role<select value={role} onChange={e=>setRole(e.target.value)}>{roles.filter(r=>r!=="owner"||profile.role==="owner").map(r=><option value={r} key={r}>{roleName(r)}</option>)}</select></label><button className="primary" disabled={busy}>{busy?"Adding…":"Add member"}<ArrowRight size={15}/></button></form></section>}{error&&<div className="form-error" role="alert">{error}</div>}{notice&&<div className="form-success" role="status">{notice}</div>}<footer>ForgeOS · Industrial Operations & Manufacturing Intelligence <span>Milestone 2 · Enterprise identity</span></footer></section></main>;
+}
+
+export default function App(){
+ const [profile,setProfile]=useState<Profile|null>(null),[token,setToken]=useState(""),[checking,setChecking]=useState(true);
+ useEffect(()=>{let active=true;(async()=>{try{const data=await api<AuthPayload>("/auth/refresh",{method:"POST"});if(active){setProfile(data);setToken(data.accessToken);}}catch{/* The sign-in form is available when no valid refresh cookie exists. */}finally{if(active)setChecking(false);}})();return()=>{active=false;};},[]);
+ function onAuth(data:AuthPayload){setProfile(data);setToken(data.accessToken);}
+ async function logout(){try{await api("/auth/logout",{method:"POST"},token);}finally{setProfile(null);setToken("");}}
+ if(checking)return <main className="loading-screen"><Factory size={24}/><p>Restoring secure workspace…</p></main>;
+ if(!profile||!token)return <AuthScreen onAuth={onAuth}/>;
+ return <Dashboard profile={profile} token={token} onLogout={()=>void logout()}/>;
 }

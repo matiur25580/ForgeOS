@@ -21,6 +21,9 @@ MongoDB / Mongoose
 
 - `apps/web`: browser UI; never holds database credentials or server secrets.
 - `apps/api`: API, domain logic, persistence, authorization and integration adapters.
+- `apps/api/src/models`: user, organization, membership and refresh-session persistence.
+- `apps/api/src/security`: password hashing and signed access-token verification.
+- `apps/api/src/services`: identity lifecycle, refresh rotation and tenant membership workflows.
 - `docs`: architecture decisions, API contracts, threat model and operational runbooks.
 
 ## Reliability baseline
@@ -34,4 +37,4 @@ MongoDB / Mongoose
 
 ## Security boundaries
 
-This foundation does not yet provide user authentication or tenant authorization. Do not expose it to untrusted production traffic until Milestone 2 is implemented and reviewed. Secrets must be supplied through deployment environment configuration and must never be committed.
+Milestone 2 implements bearer-token authentication, rotating HttpOnly refresh sessions, active membership checks and organization-scoped request context. This is a portfolio implementation, not a completed production identity provider; MFA, recovery, external audit export, shared rate limiting and deeper database-backed security tests remain required. Secrets must be supplied through deployment environment configuration and must never be committed.

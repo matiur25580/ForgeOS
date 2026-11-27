@@ -1,0 +1,10 @@
+import {Router} from "express";
+import {authenticate,requireRoles} from "../middleware/auth.middleware.js";
+import {Organization} from "../models/organization.model.js";
+import {addMemberSchema,createOrganizationSchema} from "./auth.schemas.js";
+import {addOrganizationMember,createOrganization,listOrganizations} from "../services/auth.service.js";
+export const organizationRouter=Router();
+organizationRouter.use(authenticate);
+organizationRouter.get("/",async(req,res,next)=>{try{const memberships=await listOrganizations(req.auth!.userId);res.json({success:true,data:{memberships}});}catch(error){next(error);}});
+organizationRouter.post("/",async(req,res,next)=>{try{const input=createOrganizationSchema.parse(req.body);const organization=await createOrganization(req.auth!.userId,input.name,input.slug);res.status(201).json({success:true,data:{organization}});}catch(error){next(error);}});
+organizationRouter.post("/:organizationId/members",requireRoles("owner","admin"),async(req,res,next)=>{try{const organization=await Organization.findOne({_id:req.params.organizationId,status:"active"}).select("_id");if(!organization||String(organization._id)!==req.auth!.organizationId){res.status(404).json({success:false,error:{code:"ORGANIZATION_NOT_FOUND",message:"The organization was not found in the active tenant context."}});return;}const input=addMemberSchema.parse(req.body);const membership=await addOrganizationMember(req.auth!.organizationId,req.auth!.role,input.email,input.role);res.status(201).json({success:true,data:{membership}});}catch(error){next(error);}});
