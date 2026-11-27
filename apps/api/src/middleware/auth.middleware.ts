@@ -3,13 +3,13 @@ import {Membership} from "../models/membership.model.js";
 import {Organization} from "../models/organization.model.js";
 import {Session} from "../models/session.model.js";
 import {User} from "../models/user.model.js";
-import {verifyAccessToken} from "../security/tokens.js";
+import {verifyAccessToken,type AccessClaims} from "../security/tokens.js";
 export interface AuthContext{userId:string;organizationId:string;role:string;sessionId:string}
 declare global{namespace Express{interface Request{auth?:AuthContext}}}
 export async function authenticate(req:Request,res:Response,next:NextFunction):Promise<void>{
  const header=req.header("authorization");const token=header?.startsWith("Bearer ")?header.slice(7):"";
  if(!token){res.status(401).json({success:false,error:{code:"AUTHENTICATION_REQUIRED",message:"A valid access token is required."}});return;}
- let p;try{p=verifyAccessToken(token);}catch{res.status(401).json({success:false,error:{code:"INVALID_ACCESS_TOKEN",message:"The access token is invalid or expired."}});return;}
+ let p:AccessClaims;try{p=verifyAccessToken(token);}catch{res.status(401).json({success:false,error:{code:"INVALID_ACCESS_TOKEN",message:"The access token is invalid or expired."}});return;}
  try{
   const [u,o,m,s]=await Promise.all([
    User.findById(p.sub).select("_id status"),Organization.findById(p.org).select("_id status"),
