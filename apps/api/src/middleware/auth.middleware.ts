@@ -9,8 +9,8 @@ declare global{namespace Express{interface Request{auth?:AuthContext}}}
 export async function authenticate(req:Request,res:Response,next:NextFunction):Promise<void>{
  const header=req.header("authorization");const token=header?.startsWith("Bearer ")?header.slice(7):"";
  if(!token){res.status(401).json({success:false,error:{code:"AUTHENTICATION_REQUIRED",message:"A valid access token is required."}});return;}
+ let p;try{p=verifyAccessToken(token);}catch{res.status(401).json({success:false,error:{code:"INVALID_ACCESS_TOKEN",message:"The access token is invalid or expired."}});return;}
  try{
-  const p=verifyAccessToken(token);
   const [u,o,m,s]=await Promise.all([
    User.findById(p.sub).select("_id status"),Organization.findById(p.org).select("_id status"),
    Membership.findOne({userId:p.sub,organizationId:p.org,status:"active"}).select("_id role"),
