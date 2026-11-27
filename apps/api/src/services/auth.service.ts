@@ -11,23 +11,24 @@ import {createAccessToken} from "../security/tokens.js";
 export class AuthError extends Error{
  constructor(public status:number,public code:string,message:string){super(message);this.name="AuthError";}
 }
-const fail=(status:number,code:string,message:string):never=>{throw new AuthError(status,code,message);};
+function fail(status:number,code:string,message:string):never{throw new AuthError(status,code,message);}
 const digest=(token:string)=>createHash("sha256").update(token).digest("hex");
 const slugify=(value:string)=>value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,63);
-type RequestMeta={ipAddress?:string;userAgent?:string};
+type RequestMeta={ipAddress?:string | undefined;userAgent?:string | undefined};
 type Issued={accessToken:string;refreshToken:string;expiresIn:number;sessionId:string};
-async function issueSession(userId:Types.ObjectId,organizationId:Types.ObjectId,meta:RequestMeta,session:mongoose.ClientSession,tokenFamily=randomUUID()):Promise<Issued>{
+type AuthResult=Issued & {user:{id:string;email:string;firstName:string;lastName:string};organization:{id:string;name:string;slug:string};role:string};
+async function issueSession(userId:Types.ObjectId,organizationId:Types.ObjectId,meta:RequestMeta,session:mongoose.ClientSession,tokenFamily:string=randomUUID()):Promise<Issued>{
  const refreshToken=randomBytes(48).toString("base64url");
  const sessionId=new Types.ObjectId();
  const expiresAt=new Date(Date.now()+env.REFRESH_TOKEN_TTL_DAYS*86400000);
  await Session.create([{_id:sessionId,userId,organizationId,refreshTokenHash:digest(refreshToken),tokenFamily,expiresAt,ipAddress:meta.ipAddress??"",userAgent:(meta.userAgent??"").slice(0,300)}],{session});
  return {accessToken:createAccessToken({sub:String(userId),org:String(organizationId),sid:String(sessionId)}),refreshToken,expiresIn:900,sessionId:String(sessionId)};
 }
-export async function register(input:{email:string;password:string;firstName:string;lastName:string;organizationName:string;organizationSlug?:string},meta:RequestMeta){
+export async function register(input:{email:string;password:string;firstName:string;lastName:string;organizationName:string;organizationSlug?:string | undefined},meta:RequestMeta):Promise<AuthResult>{
  const passwordHash=await hashPassword(input.password);
  const slug=input.organizationSlug?.trim().toLowerCase()||slugify(input.organizationName);
  if(slug.length<3)fail(400,"INVALID_ORGANIZATION_SLUG","Organization name must produce a slug of at least three characters.");
- const db=await mongoose.startSession();let result:Record<string,unknown>|undefined;
+ const db=await mongoose.startSession();let result:AuthResult|undefined;
  try{await db.withTransaction(async()=>{
   const [user]=await User.create([{email:input.email.toLowerCase(),passwordHash,firstName:input.firstName,lastName:input.lastName}],{session:db});
   if(!user)fail(500,"REGISTRATION_FAILED","The account could not be created.");
@@ -40,7 +41,7 @@ export async function register(input:{email:string;password:string;firstName:str
  if(!result)fail(500,"REGISTRATION_FAILED","The account could not be created.");
  return result;
 }
-export async function login(input:{email:string;password:string;organizationSlug?:string},meta:RequestMeta){
+export async function login(input:{email:string;password:string;organizationSlug?:string | undefined},meta:RequestMeta):Promise<AuthResult>{
  const user=await User.findOne({email:input.email.toLowerCase()}).select("+passwordHash");
  if(!user||user.status!=="active"||!(await verifyPassword(input.password,user.passwordHash)))fail(401,"INVALID_CREDENTIALS","Email or password is incorrect.");
  const memberships=await Membership.find({userId:user._id,status:"active"}).populate({path:"organizationId",match:{status:"active"}});
@@ -58,7 +59,7 @@ export async function login(input:{email:string;password:string;organizationSlug
  if(!issued)fail(500,"LOGIN_FAILED","A secure session could not be created.");
  return {user:{id:String(user._id),email:user.email,firstName:user.firstName,lastName:user.lastName},organization:{id:String(organization._id),name:organization.name,slug:organization.slug},role:membership.role,...issued};
 }
-export async function rotateSession(refreshToken:string,meta:RequestMeta){
+export async function rotateSession(refreshToken:string,meta:RequestMeta):Promise<AuthResult>{
  const old=await Session.findOne({refreshTokenHash:digest(refreshToken)}).select("+refreshTokenHash");
  if(!old)fail(401,"SESSION_INVALID","The refresh session is invalid. Sign in again.");
  if(old.revokedAt){await Session.updateMany({tokenFamily:old.tokenFamily,revokedAt:null},{$set:{revokedAt:new Date()}});fail(401,"REFRESH_TOKEN_REUSE","A previously rotated refresh token was reused. The session family was revoked.");}
