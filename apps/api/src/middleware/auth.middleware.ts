@@ -18,6 +18,6 @@ export async function authenticate(req:Request,res:Response,next:NextFunction):P
   ]);
   if(!u||u.status!=="active"||!o||o.status!=="active"||!m||!s){res.status(401).json({success:false,error:{code:"SESSION_INVALID",message:"Your session is no longer valid. Please sign in again."}});return;}
   req.auth={userId:p.sub,organizationId:p.org,role:m.role,sessionId:p.sid};next();
- }catch{res.status(401).json({success:false,error:{code:"INVALID_ACCESS_TOKEN",message:"The access token is invalid or expired."}});}
+ }catch(error){next(error);}
 }
 export function requireRoles(...roles:string[]){return(req:Request,res:Response,next:NextFunction)=>{if(!req.auth){res.status(401).json({success:false,error:{code:"AUTHENTICATION_REQUIRED",message:"Sign in is required."}});return;}if(!roles.includes(req.auth.role)){res.status(403).json({success:false,error:{code:"INSUFFICIENT_PERMISSIONS",message:"You do not have permission to perform this action."}});return;}next();};}
