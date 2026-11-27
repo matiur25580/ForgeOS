@@ -20,7 +20,10 @@ MongoDB / Mongoose
 ## Application boundaries
 
 - `apps/web`: browser UI; never holds database credentials or server secrets.
-- `apps/api`: API, domain logic, persistence, authorization and integration adapters.\n- `apps/api/src/models`: user, organization, membership and refresh-session persistence.\n- `apps/api/src/security`: password hashing and signed access-token verification.\n- `apps/api/src/services`: identity lifecycle, refresh rotation and tenant membership workflows.
+- `apps/api`: API, domain logic, persistence, authorization and integration adapters.
+- `apps/api/src/models`: user, organization, membership and refresh-session persistence.
+- `apps/api/src/security`: password hashing and signed access-token verification.
+- `apps/api/src/services`: identity lifecycle, refresh rotation and tenant membership workflows.
 - `docs`: architecture decisions, API contracts, threat model and operational runbooks.
 
 ## Reliability baseline
