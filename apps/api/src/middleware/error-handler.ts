@@ -5,7 +5,8 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({ success: false, error: { code: "ROUTE_NOT_FOUND", message: "The requested resource was not found." } });
 };
 
-export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, next) => {
+  if (res.headersSent) { next(error); return; }
   if (typeof error === "object" && error !== null && "code" in error && error.code === 11000) {
     res.status(409).json({ success: false, error: { code: "RESOURCE_CONFLICT", message: "A record with that unique value already exists." } });
     return;
