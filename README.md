@@ -4,7 +4,7 @@
 
 ForgeOS is a multi-tenant manufacturing operations platform designed to help industrial teams coordinate production execution, machine availability, maintenance, quality inspections, and operational performance from a single system.
 
-> Project status: foundation initialization. Features are considered implemented only when their API/UI behavior, tests, and documentation are present and verified.
+> Project status: Milestone 2 — enterprise identity and organization tenancy implemented on the feature branch; awaiting CI and review.
 
 ## Product vision
 
@@ -52,7 +52,7 @@ Manufacturing teams often manage production schedules, machine downtime, mainten
 | Milestone | Scope |
 | --- | --- |
 | 1. Platform foundation | Monorepo, typed API, environment validation, health checks, Docker, CI |
-| 2. Enterprise identity | Authentication, organizations, membership, RBAC, tenant isolation |
+| 2. Enterprise identity | Authentication, organizations, membership, RBAC, tenant isolation — implemented on feature branch |
 | 3. Plant & asset registry | Plants, lines, work cells, machines, criticality, asset lifecycle |
 | 4. Production execution | Production orders, routing, shift plans, output reporting |
 | 5. Maintenance operations | Work orders, assignment, downtime, maintenance history |
@@ -62,8 +62,8 @@ Manufacturing teams often manage production schedules, machine downtime, mainten
 
 ## Local development
 
-Setup instructions will be added with the first runnable application milestone. Never commit real credentials; use environment templates with placeholders only.
+Copy `.env.example` to `.env`, then run `docker compose up --build` to start MongoDB (single-node replica set) and the API. Start the web client with `npm run dev:web`. For a host-run API, configure a replica set whose advertised member hostname is reachable from the host. Never commit real credentials; use environment templates with placeholders only.
 
-## Security disclosure
+## Implemented identity milestone\n\n- bcrypt password hashing, validated registration and login, signed short-lived access JWTs.\n- HttpOnly refresh cookie with rotation, token-family reuse detection and session revocation.\n- Organization, membership and operational role models with active-status checks on each request.\n- Tenant context is derived from the access token and verified membership, not client-supplied organization IDs.\n- Organization membership listing and role-restricted member provisioning for existing accounts.\n- Authenticated React workspace, current organization context and owner/admin team access panel.\n- MongoDB replica-set transactions for registration and refresh rotation.\n\nSee [Identity and tenancy documentation](docs/IDENTITY-AND-TENANCY.md). Plant registry and manufacturing domain workflows remain future milestones.\n\n## Security disclosure
 
 Do not use real plant credentials, production secrets, customer information, or sensitive industrial network details in issues or sample data. Report security concerns privately to the repository maintainer.
