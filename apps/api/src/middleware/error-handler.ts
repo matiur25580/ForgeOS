@@ -8,6 +8,7 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
+  void _next;
   const candidate = error as { statusCode?: number; code?: string; message?: string };
   const status = Number.isInteger(candidate?.statusCode) && (candidate.statusCode as number) >= 400
     ? candidate.statusCode as number
